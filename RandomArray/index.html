@@ -1,0 +1,559 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+	
+	<link rel="manifest" href="manifest.json">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Random Number</title>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .input-row {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+			flex-wrap: wrap;
+			justify-content: center;
+        }
+
+        .option-row {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .button-row {
+            min-height: 44px;
+            padding: 10px 18px;
+			font-size: 16px;
+			cursor: pointer;
+        }
+
+        #result {
+            margin-top: 20px;
+            font-size: 5rem;
+            text-align: center;
+        }
+
+        #poolInfo {
+            margin-top: 5px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        input[type="number"] {
+            width: 100px;
+        }
+		
+		input[type="checkbox"]{
+		    width: 20px;
+		    height: 20px;
+		}
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+
+        <!-- 輸入區 -->
+        <div class="input-row">
+
+            <span>I want</span>
+
+            <input
+                id="intDraw"
+                type="number"
+                min="1"
+                step="1"
+                value="3"
+                autocomplete="off"
+            >
+
+            <span>random numbers between 1 to</span>
+
+            <input
+                id="intNum"
+                type="number"
+                min="1"
+                step="1"
+                value="10"
+                autocomplete="off"
+            >
+
+        </div>
+
+
+        <!-- 選項 -->
+        <div class="option-row">
+
+            <label>
+                <input
+                    id="allowNegative"
+                    type="checkbox"
+                >
+                Allow negative numbers
+            </label>
+
+            <label>
+                <input
+                    id="includeZero"
+                    type="checkbox"
+                >
+                Include 0
+            </label>
+
+        </div>
+
+
+        <!-- 顯示目前獎池 -->
+        <div id="poolInfo"></div>
+
+
+        <!-- 按鈕 -->
+        <div class="button-row">
+
+            <button
+                id="randomButton"
+                type="button"
+            >
+                Random Number!
+            </button>
+
+            <button
+                id="clearButton"
+                type="button"
+            >
+                Clear All
+            </button>
+
+        </div>
+
+
+        <!-- 結果 -->
+        <div id="result"></div>
+
+    </div>
+
+
+    <script>
+
+        // =========================================================
+        // 取得 HTML 元素
+        // =========================================================
+
+        const intDrawInput =
+            document.getElementById("intDraw");
+
+        const intNumInput =
+            document.getElementById("intNum");
+
+        const allowNegativeInput =
+            document.getElementById("allowNegative");
+
+        const includeZeroInput =
+            document.getElementById("includeZero");
+
+        const randomButton =
+            document.getElementById("randomButton");
+
+        const clearButton =
+            document.getElementById("clearButton");
+
+        const resultDiv =
+            document.getElementById("result");
+
+        const poolInfoDiv =
+            document.getElementById("poolInfo");
+			
+		if ("serviceWorker" in navigator) {
+
+    navigator.serviceWorker.register(
+        "service-worker.js"
+    );
+
+}
+
+
+        // =========================================================
+        // 建立獎池
+        // =========================================================
+
+        	
+		function createPool(maxNumber) {
+
+            const pool = [];
+
+            const allowNegative =
+                allowNegativeInput.checked;
+
+            const includeZero =
+                includeZeroInput.checked;
+
+
+            // -------------------------
+            // 負數
+            // -------------------------
+
+            if (allowNegative) {
+
+                for (
+                    let number = -maxNumber;
+                    number <= -1;
+                    number++
+                ) {
+
+                    pool.push(number);
+
+                }
+
+            }
+
+
+            // -------------------------
+            // 0
+            // -------------------------
+
+            if (includeZero) {
+
+                pool.push(0);
+
+            }
+
+
+            // -------------------------
+            // 正數
+            // -------------------------
+
+            for (
+                let number = 1;
+                number <= maxNumber;
+                number++
+            ) {
+
+                pool.push(number);
+
+            }
+
+
+            return pool;
+
+        }
+
+
+        // =========================================================
+        // 更新目前獎池說明
+        // =========================================================
+
+        function updatePoolInfo() {
+
+            const maxNumber =
+                Number(intNumInput.value);
+
+
+            if (
+                !Number.isInteger(maxNumber) ||
+                maxNumber < 1
+            ) {
+
+                poolInfoDiv.textContent =
+                    "Please enter a positive integer.";
+
+                return;
+
+            }
+
+
+            const allowNegative =
+                allowNegativeInput.checked;
+
+            const includeZero =
+                includeZeroInput.checked;
+
+
+            let text = "Pool: ";
+
+
+            if (allowNegative) {
+
+                text +=
+                    "-" +
+                    maxNumber +
+                    " to -1, ";
+
+            }
+
+
+            if (includeZero) {
+
+                text += "0, ";
+
+            }
+
+
+            text +=
+                "1 to " +
+                maxNumber;
+
+
+            const pool =
+                createPool(maxNumber);
+
+
+            text +=
+                " (" +
+                pool.length +
+                " numbers)";
+
+
+            poolInfoDiv.textContent =
+                text;
+
+        }
+
+
+        // =========================================================
+        // 產生隨機數
+        // =========================================================
+
+        function generateRandomNumbers() {
+
+            const maxNumber =
+                Number(intNumInput.value);
+
+            const drawCount =
+                Number(intDrawInput.value);
+
+
+            // -------------------------
+            // 檢查輸入
+            // -------------------------
+
+            if (
+                !Number.isInteger(maxNumber) ||
+                maxNumber < 1
+            ) {
+
+                resultDiv.textContent =
+                    "Invalid maximum number.";
+
+                return;
+
+            }
+
+
+            if (
+                !Number.isInteger(drawCount) ||
+                drawCount < 1
+            ) {
+
+                resultDiv.textContent =
+                    "Invalid draw count.";
+
+                return;
+
+            }
+
+
+            // -------------------------
+            // 建立獎池
+            // -------------------------
+
+            const pool =
+                createPool(maxNumber);
+
+
+            // -------------------------
+            // 檢查抽取數量
+            // -------------------------
+
+            if (drawCount > pool.length) {
+
+                resultDiv.textContent =
+                    "Not enough numbers in pool.";
+
+                return;
+
+            }
+
+
+            // -------------------------
+            // 開始抽取
+            // -------------------------
+
+            const results = [];
+
+
+            for (
+                let i = 0;
+                i < drawCount;
+                i++
+            ) {
+
+                // 從剩餘的 pool 中
+                // 隨機取得一個 index
+                const randomIndex =
+                    Math.floor(
+                        Math.random() *
+                        pool.length
+                    );
+
+
+                // 取得該號碼
+                const selectedNumber =
+                    pool[randomIndex];
+
+
+                // 存入結果
+                results.push(
+                    selectedNumber
+                );
+
+
+                // 從獎池移除
+                // 因此不會重複抽到
+                pool.splice(
+                    randomIndex,
+                    1
+                );
+
+            }
+
+
+            // -------------------------
+            // 顯示結果
+            // -------------------------
+
+            resultDiv.textContent =
+                results.join(", ") + ".";
+
+
+            console.log(
+                "Result:",
+                results
+            );
+
+        }
+
+
+        // =========================================================
+        // Clear All
+        // =========================================================
+
+        function clearAll() {
+
+            // 恢復原始預設值
+            intDrawInput.value = 3;
+
+            intNumInput.value = 10;
+
+            allowNegativeInput.checked =
+                false;
+
+            includeZeroInput.checked =
+                false;
+
+
+            // 清除結果
+            resultDiv.textContent = "";
+
+
+            // 更新獎池顯示
+            updatePoolInfo();
+
+        }
+
+
+        // =========================================================
+        // Event Listeners
+        // =========================================================
+
+        randomButton.addEventListener(
+            "click",
+            generateRandomNumbers
+        );
+
+
+        clearButton.addEventListener(
+            "click",
+            clearAll
+        );
+
+
+        allowNegativeInput.addEventListener(
+            "change",
+            updatePoolInfo
+        );
+
+
+        includeZeroInput.addEventListener(
+            "change",
+            updatePoolInfo
+        );
+
+
+        intNumInput.addEventListener(
+            "input",
+            updatePoolInfo
+        );
+
+
+        // 在輸入框按 Enter 時抽數字
+        // 不會 submit / reload 網頁
+        intDrawInput.addEventListener(
+            "keydown",
+            function (event) {
+
+                if (event.key === "Enter") {
+
+                    event.preventDefault();
+
+                    generateRandomNumbers();
+
+                }
+
+            }
+        );
+
+
+        intNumInput.addEventListener(
+            "keydown",
+            function (event) {
+
+                if (event.key === "Enter") {
+
+                    event.preventDefault();
+
+                    generateRandomNumbers();
+
+                }
+
+            }
+        );
+
+
+        // 初次載入顯示獎池
+        updatePoolInfo();
+
+    </script>
+
+</body>
+
+</html>
