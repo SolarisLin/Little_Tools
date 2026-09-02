@@ -1,17 +1,20 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
-	
-	<link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="./manifest.json">
 
     <meta name="viewport"
           content="width=device-width, initial-scale=1.0">
 
-    <title>Random Number</title>
+    <title>Random Tool</title>
 
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             margin: 0;
             padding: 20px;
@@ -19,61 +22,145 @@
         }
 
         .container {
+            width: min(100%, 760px);
+            margin: 0 auto;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 10px;
+            gap: 16px;
+        }
+
+        .mode-row {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 18px;
+        }
+
+        .mode-row label,
+        .option-row label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1rem;
         }
 
         .input-row {
             display: flex;
             align-items: center;
-            gap: 5px;
-			flex-wrap: wrap;
-			justify-content: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            text-align: center;
         }
 
         .option-row {
             display: flex;
             flex-direction: column;
-            gap: 5px;
+            gap: 8px;
         }
 
         .button-row {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        button {
             min-height: 44px;
             padding: 10px 18px;
-			font-size: 16px;
-			cursor: pointer;
-        }
-
-        #result {
-            margin-top: 20px;
-            font-size: 5rem;
-            text-align: center;
-        }
-
-        #poolInfo {
-            margin-top: 5px;
-            font-size: 0.9rem;
-            color: #666;
+            font-size: 16px;
+            cursor: pointer;
         }
 
         input[type="number"] {
-            width: 100px;
+            width: 110px;
+            min-height: 42px;
+            padding: 6px 10px;
+            font-size: 16px;
         }
-		
-		input[type="checkbox"]{
-		    width: 20px;
-		    height: 20px;
-		}
+
+        input[type="checkbox"],
+        input[type="radio"] {
+            width: 20px;
+            height: 20px;
+        }
+
+        #poolInfo {
+            min-height: 1.2em;
+            font-size: 0.95rem;
+            color: #666;
+            text-align: center;
+        }
+
+        #result {
+            width: 100%;
+            margin-top: 12px;
+            font-size: clamp(3rem, 12vw, 6rem);
+            line-height: 1.15;
+            text-align: center;
+            overflow-wrap: anywhere;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 16px;
+            }
+
+            .container {
+                gap: 14px;
+            }
+
+            .input-row {
+                font-size: 1rem;
+            }
+
+            .button-row {
+                width: 100%;
+            }
+
+            .button-row button {
+                flex: 1 1 140px;
+            }
+        }
     </style>
 </head>
 
 <body>
 
-    <div class="container">
+    <main class="container">
 
-        <!-- 輸入區 -->
+        <!-- 模式 -->
+        <div class="mode-row" aria-label="Draw mode">
+            <label>
+                <input
+                    id="modeRandom"
+                    type="radio"
+                    name="drawMode"
+                    value="random"
+                    checked
+                >
+                Random Number
+            </label>
+
+            <label>
+                <input
+                    id="modeTarot"
+                    type="radio"
+                    name="drawMode"
+                    value="tarot"
+                >
+                Tarot Draw
+            </label>
+        </div>
+
+
+        <!-- 共用輸入 -->
         <div class="input-row">
 
             <span>I want</span>
@@ -83,26 +170,26 @@
                 type="number"
                 min="1"
                 step="1"
-                value="3"
+                value="7"
                 autocomplete="off"
             >
 
-            <span>random numbers between 1 to</span>
+            <span id="inputSentence">random numbers between 1 to</span>
 
             <input
                 id="intNum"
                 type="number"
                 min="1"
                 step="1"
-                value="10"
+                value="78"
                 autocomplete="off"
             >
 
         </div>
 
 
-        <!-- 選項 -->
-        <div class="option-row">
+        <!-- Random Number 專用選項 -->
+        <div id="randomOptions" class="option-row">
 
             <label>
                 <input
@@ -123,7 +210,22 @@
         </div>
 
 
-        <!-- 顯示目前獎池 -->
+        <!-- Tarot 專用選項 -->
+        <div id="tarotOptions" class="option-row hidden">
+
+            <label>
+                <input
+                    id="allowReversed"
+                    type="checkbox"
+                    checked
+                >
+                Allow reversed cards
+            </label>
+
+        </div>
+
+
+        <!-- Pool / Deck 狀態 -->
         <div id="poolInfo"></div>
 
 
@@ -131,7 +233,7 @@
         <div class="button-row">
 
             <button
-                id="randomButton"
+                id="drawButton"
                 type="button"
             >
                 Random Number!
@@ -148,16 +250,24 @@
 
 
         <!-- 結果 -->
-        <div id="result"></div>
+        <div
+            id="result"
+            aria-live="polite"
+        ></div>
 
-    </div>
+    </main>
 
 
     <script>
+        // =========================================================
+        // DOM
+        // =========================================================
 
-        // =========================================================
-        // 取得 HTML 元素
-        // =========================================================
+        const modeRandomInput =
+            document.getElementById("modeRandom");
+
+        const modeTarotInput =
+            document.getElementById("modeTarot");
 
         const intDrawInput =
             document.getElementById("intDraw");
@@ -165,14 +275,26 @@
         const intNumInput =
             document.getElementById("intNum");
 
+        const inputSentence =
+            document.getElementById("inputSentence");
+
+        const randomOptions =
+            document.getElementById("randomOptions");
+
+        const tarotOptions =
+            document.getElementById("tarotOptions");
+
         const allowNegativeInput =
             document.getElementById("allowNegative");
 
         const includeZeroInput =
             document.getElementById("includeZero");
 
-        const randomButton =
-            document.getElementById("randomButton");
+        const allowReversedInput =
+            document.getElementById("allowReversed");
+
+        const drawButton =
+            document.getElementById("drawButton");
 
         const clearButton =
             document.getElementById("clearButton");
@@ -182,207 +304,141 @@
 
         const poolInfoDiv =
             document.getElementById("poolInfo");
-			
-		if ("serviceWorker" in navigator) {
-
-    navigator.serviceWorker.register(
-        "service-worker.js"
-    );
-
-}
 
 
         // =========================================================
-        // 建立獎池
+        // 每個模式各自記住自己的最大值
         // =========================================================
 
-        	
-		function createPool(maxNumber) {
+        let randomMaxMemory = 10;
+        let tarotDeckMemory = 78;
+
+
+        // =========================================================
+        // Service Worker
+        // =========================================================
+
+        if ("serviceWorker" in navigator) {
+            navigator.serviceWorker.register("./service-worker.js");
+        }
+
+
+        // =========================================================
+        // 共用工具
+        // =========================================================
+
+        function getMode() {
+            return modeTarotInput.checked
+                ? "tarot"
+                : "random";
+        }
+
+
+        function getPositiveInteger(inputElement) {
+
+            const value =
+                Number(inputElement.value);
+
+            if (
+                !Number.isInteger(value) ||
+                value < 1
+            ) {
+                return null;
+            }
+
+            return value;
+        }
+
+
+        // =========================================================
+        // Random Number：建立獎池
+        // =========================================================
+
+        function createRandomPool(maxNumber) {
 
             const pool = [];
 
-            const allowNegative =
-                allowNegativeInput.checked;
-
-            const includeZero =
-                includeZeroInput.checked;
-
-
-            // -------------------------
-            // 負數
-            // -------------------------
-
-            if (allowNegative) {
+            if (allowNegativeInput.checked) {
 
                 for (
                     let number = -maxNumber;
                     number <= -1;
                     number++
                 ) {
-
                     pool.push(number);
-
                 }
 
             }
 
-
-            // -------------------------
-            // 0
-            // -------------------------
-
-            if (includeZero) {
-
+            if (includeZeroInput.checked) {
                 pool.push(0);
-
             }
-
-
-            // -------------------------
-            // 正數
-            // -------------------------
 
             for (
                 let number = 1;
                 number <= maxNumber;
                 number++
             ) {
-
                 pool.push(number);
-
             }
-
 
             return pool;
-
         }
 
 
         // =========================================================
-        // 更新目前獎池說明
+        // Tarot：建立牌池
+        //
+        // 注意：
+        // 牌池永遠只有 1 ~ N。
+        // 正位 / 逆位不是第二張牌，而是牌的方向屬性。
         // =========================================================
 
-        function updatePoolInfo() {
+        function createTarotDeck(deckSize) {
 
-            const maxNumber =
-                Number(intNumInput.value);
+            const deck = [];
 
-
-            if (
-                !Number.isInteger(maxNumber) ||
-                maxNumber < 1
+            for (
+                let card = 1;
+                card <= deckSize;
+                card++
             ) {
-
-                poolInfoDiv.textContent =
-                    "Please enter a positive integer.";
-
-                return;
-
+                deck.push(card);
             }
 
-
-            const allowNegative =
-                allowNegativeInput.checked;
-
-            const includeZero =
-                includeZeroInput.checked;
-
-
-            let text = "Pool: ";
-
-
-            if (allowNegative) {
-
-                text +=
-                    "-" +
-                    maxNumber +
-                    " to -1, ";
-
-            }
-
-
-            if (includeZero) {
-
-                text += "0, ";
-
-            }
-
-
-            text +=
-                "1 to " +
-                maxNumber;
-
-
-            const pool =
-                createPool(maxNumber);
-
-
-            text +=
-                " (" +
-                pool.length +
-                " numbers)";
-
-
-            poolInfoDiv.textContent =
-                text;
-
+            return deck;
         }
 
 
         // =========================================================
-        // 產生隨機數
+        // Random Number 模式
         // =========================================================
 
         function generateRandomNumbers() {
 
             const maxNumber =
-                Number(intNumInput.value);
+                getPositiveInteger(intNumInput);
 
             const drawCount =
-                Number(intDrawInput.value);
+                getPositiveInteger(intDrawInput);
 
 
-            // -------------------------
-            // 檢查輸入
-            // -------------------------
-
-            if (
-                !Number.isInteger(maxNumber) ||
-                maxNumber < 1
-            ) {
-
+            if (maxNumber === null) {
                 resultDiv.textContent =
                     "Invalid maximum number.";
-
                 return;
-
             }
 
-
-            if (
-                !Number.isInteger(drawCount) ||
-                drawCount < 1
-            ) {
-
+            if (drawCount === null) {
                 resultDiv.textContent =
                     "Invalid draw count.";
-
                 return;
-
             }
 
 
-            // -------------------------
-            // 建立獎池
-            // -------------------------
-
             const pool =
-                createPool(maxNumber);
+                createRandomPool(maxNumber);
 
-
-            // -------------------------
-            // 檢查抽取數量
-            // -------------------------
 
             if (drawCount > pool.length) {
 
@@ -390,13 +446,8 @@
                     "Not enough numbers in pool.";
 
                 return;
-
             }
 
-
-            // -------------------------
-            // 開始抽取
-            // -------------------------
 
             const results = [];
 
@@ -407,49 +458,312 @@
                 i++
             ) {
 
-                // 從剩餘的 pool 中
-                // 隨機取得一個 index
                 const randomIndex =
                     Math.floor(
                         Math.random() *
                         pool.length
                     );
 
-
-                // 取得該號碼
                 const selectedNumber =
                     pool[randomIndex];
 
-
-                // 存入結果
                 results.push(
                     selectedNumber
                 );
 
-
-                // 從獎池移除
-                // 因此不會重複抽到
+                // 不放回抽取
                 pool.splice(
                     randomIndex,
                     1
                 );
-
             }
 
-
-            // -------------------------
-            // 顯示結果
-            // -------------------------
 
             resultDiv.textContent =
                 results.join(", ") + ".";
 
 
             console.log(
-                "Result:",
+                "Random Number Result:",
                 results
             );
+        }
 
+
+        // =========================================================
+        // Tarot Draw 模式
+        // =========================================================
+
+        function generateTarotDraw() {
+
+            const deckSize =
+                getPositiveInteger(intNumInput);
+
+            const drawCount =
+                getPositiveInteger(intDrawInput);
+
+
+            if (deckSize === null) {
+                resultDiv.textContent =
+                    "Invalid deck size.";
+                return;
+            }
+
+            if (drawCount === null) {
+                resultDiv.textContent =
+                    "Invalid draw count.";
+                return;
+            }
+
+
+            const deck =
+                createTarotDeck(deckSize);
+
+
+            if (drawCount > deck.length) {
+
+                resultDiv.textContent =
+                    "Not enough cards in deck.";
+
+                return;
+            }
+
+
+            const results = [];
+
+
+            for (
+                let i = 0;
+                i < drawCount;
+                i++
+            ) {
+
+                // ① 抽哪一張牌
+                const randomIndex =
+                    Math.floor(
+                        Math.random() *
+                        deck.length
+                    );
+
+                const selectedCard =
+                    deck[randomIndex];
+
+
+                // ② 抽過的牌移出牌池
+                deck.splice(
+                    randomIndex,
+                    1
+                );
+
+
+                // ③ 再獨立決定正位 / 逆位
+                let direction = 1;
+
+                if (allowReversedInput.checked) {
+
+                    direction =
+                        Math.random() < 0.5
+                            ? 1
+                            : -1;
+
+                }
+
+
+                // ④ 用正負號表示方向
+                results.push(
+                    selectedCard * direction
+                );
+            }
+
+
+            resultDiv.textContent =
+                results.join(", ") + ".";
+
+
+            console.log(
+                "Tarot Draw Result:",
+                results
+            );
+        }
+
+
+        // =========================================================
+        // 依照目前模式執行
+        // =========================================================
+
+        function draw() {
+
+            resultDiv.textContent = "";
+
+            if (getMode() === "tarot") {
+                generateTarotDraw();
+            }
+            else {
+                generateRandomNumbers();
+            }
+        }
+
+
+        // =========================================================
+        // 更新 Pool / Deck 資訊
+        // =========================================================
+
+        function updatePoolInfo() {
+
+            const maxNumber =
+                getPositiveInteger(intNumInput);
+
+
+            if (maxNumber === null) {
+
+                poolInfoDiv.textContent =
+                    "Please enter a positive integer.";
+
+                return;
+            }
+
+
+            if (getMode() === "tarot") {
+
+                let text =
+                    "Deck: 1 to " +
+                    maxNumber +
+                    " (" +
+                    maxNumber +
+                    " cards)";
+
+                if (allowReversedInput.checked) {
+                    text +=
+                        " · Upright / reversed: 50% / 50%";
+                }
+                else {
+                    text +=
+                        " · Upright only";
+                }
+
+                poolInfoDiv.textContent =
+                    text;
+
+                return;
+            }
+
+
+            let text =
+                "Pool: ";
+
+
+            if (allowNegativeInput.checked) {
+
+                text +=
+                    "-" +
+                    maxNumber +
+                    " to -1, ";
+
+            }
+
+
+            if (includeZeroInput.checked) {
+                text += "0, ";
+            }
+
+
+            text +=
+                "1 to " +
+                maxNumber;
+
+
+            const pool =
+                createRandomPool(maxNumber);
+
+
+            text +=
+                " (" +
+                pool.length +
+                " numbers)";
+
+
+            poolInfoDiv.textContent =
+                text;
+        }
+
+
+        // =========================================================
+        // 切換模式
+        // =========================================================
+
+        function updateModeUI(previousMode) {
+
+            const newMode =
+                getMode();
+
+
+            // 先記住剛離開模式的最大值
+            const currentValue =
+                getPositiveInteger(intNumInput);
+
+            if (previousMode === "random") {
+
+                if (currentValue !== null) {
+                    randomMaxMemory =
+                        currentValue;
+                }
+
+            }
+            else if (previousMode === "tarot") {
+
+                if (currentValue !== null) {
+                    tarotDeckMemory =
+                        currentValue;
+                }
+
+            }
+
+
+            if (newMode === "tarot") {
+
+                randomOptions.classList.add(
+                    "hidden"
+                );
+
+                tarotOptions.classList.remove(
+                    "hidden"
+                );
+
+                inputSentence.textContent =
+                    "cards from a deck of";
+
+                drawButton.textContent =
+                    "Draw Cards!";
+
+                intNumInput.value =
+                    tarotDeckMemory;
+
+            }
+            else {
+
+                tarotOptions.classList.add(
+                    "hidden"
+                );
+
+                randomOptions.classList.remove(
+                    "hidden"
+                );
+
+                inputSentence.textContent =
+                    "random numbers between 1 to";
+
+                drawButton.textContent =
+                    "Random Number!";
+
+                intNumInput.value =
+                    randomMaxMemory;
+
+            }
+
+
+            resultDiv.textContent = "";
+
+            updatePoolInfo();
         }
 
 
@@ -459,25 +773,39 @@
 
         function clearAll() {
 
-            // 恢復原始預設值
-            intDrawInput.value = 3;
-
-            intNumInput.value = 10;
-
-            allowNegativeInput.checked =
-                false;
-
-            includeZeroInput.checked =
-                false;
-
-
-            // 清除結果
             resultDiv.textContent = "";
 
+            intDrawInput.value = 7;
 
-            // 更新獎池顯示
+
+            if (getMode() === "tarot") {
+
+                tarotDeckMemory = 78;
+
+                intNumInput.value =
+                    tarotDeckMemory;
+
+                allowReversedInput.checked =
+                    true;
+
+            }
+            else {
+
+                randomMaxMemory = 78;
+
+                intNumInput.value =
+                    randomMaxMemory;
+
+                allowNegativeInput.checked =
+                    false;
+
+                includeZeroInput.checked =
+                    false;
+
+            }
+
+
             updatePoolInfo();
-
         }
 
 
@@ -485,9 +813,51 @@
         // Event Listeners
         // =========================================================
 
-        randomButton.addEventListener(
+        let previousMode =
+            getMode();
+
+
+        modeRandomInput.addEventListener(
+            "change",
+            function () {
+
+                if (!modeRandomInput.checked) {
+                    return;
+                }
+
+                const oldMode =
+                    previousMode;
+
+                previousMode =
+                    "random";
+
+                updateModeUI(oldMode);
+            }
+        );
+
+
+        modeTarotInput.addEventListener(
+            "change",
+            function () {
+
+                if (!modeTarotInput.checked) {
+                    return;
+                }
+
+                const oldMode =
+                    previousMode;
+
+                previousMode =
+                    "tarot";
+
+                updateModeUI(oldMode);
+            }
+        );
+
+
+        drawButton.addEventListener(
             "click",
-            generateRandomNumbers
+            draw
         );
 
 
@@ -509,47 +879,66 @@
         );
 
 
-        intNumInput.addEventListener(
-            "input",
+        allowReversedInput.addEventListener(
+            "change",
             updatePoolInfo
         );
 
 
-        // 在輸入框按 Enter 時抽數字
-        // 不會 submit / reload 網頁
-        intDrawInput.addEventListener(
-            "keydown",
-            function (event) {
+        intNumInput.addEventListener(
+            "input",
+            function () {
 
-                if (event.key === "Enter") {
+                const value =
+                    getPositiveInteger(
+                        intNumInput
+                    );
 
-                    event.preventDefault();
+                if (value !== null) {
 
-                    generateRandomNumbers();
+                    if (getMode() === "tarot") {
+                        tarotDeckMemory =
+                            value;
+                    }
+                    else {
+                        randomMaxMemory =
+                            value;
+                    }
 
                 }
 
+                updatePoolInfo();
             }
+        );
+
+
+        function handleEnter(event) {
+
+            if (event.key === "Enter") {
+
+                event.preventDefault();
+
+                draw();
+            }
+        }
+
+
+        intDrawInput.addEventListener(
+            "keydown",
+            handleEnter
         );
 
 
         intNumInput.addEventListener(
             "keydown",
-            function (event) {
-
-                if (event.key === "Enter") {
-
-                    event.preventDefault();
-
-                    generateRandomNumbers();
-
-                }
-
-            }
+            handleEnter
         );
 
 
-        // 初次載入顯示獎池
+        // =========================================================
+        // 初次載入
+        // =========================================================
+
         updatePoolInfo();
 
     </script>
