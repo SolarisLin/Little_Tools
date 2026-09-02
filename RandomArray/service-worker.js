@@ -1,4 +1,4 @@
-const CACHE_NAME = "random-number-v1";
+const CACHE_NAME = "random-number-v2";
 
 const FILES_TO_CACHE = [
     "./",
